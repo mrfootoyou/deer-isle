@@ -1,0 +1,191 @@
+---
+config:
+  title: Deer Isle Quest v6.0
+  author: "[mrfootoyou](https://github.com/mrfootoyou)"
+  layout: elk
+  // theme: default
+  // look: handDrawn
+---
+flowchart TD
+    classDef default fill:#f8fafc,color:#0f172a,stroke:#cbd5e1
+    classDef action fill:#fbcfe8,color:#831843,stroke:#f472b6
+    classDef place fill:#bfdbfe,color:#1e3a8a,stroke:#60a5fa
+    classDef endgame_loot fill:#fde68a,color:#78350f,stroke:#f59e0b
+    classDef quest_loot fill:#bbf7d0,color:#14532d,stroke:#22c55e
+    classDef optional_loot fill:#dcfce7,color:#14532d,stroke:#86efac
+
+    subgraph flowchart_key ["Key"]
+        direction LR
+        endgame_loot["Endgame Items"]
+        quest_loot["Quest Items"]
+        optional_loot["Optional Items"]
+        location["Location"]
+        endgame_loot ~~~ quest_loot ~~~ optional_loot ~~~ location
+        class optional_loot optional_loot
+        class quest_loot quest_loot
+        class endgame_loot endgame_loot
+        class location place
+    end
+    flowchart_key ~~~ spawn
+
+    spawn[Spawn]
+    spawn --> |find|dive_suit
+    spawn --> |collect|nbc_suit
+    spawn --> |visit|swamp_temple_tele
+    spawn --> |find|kmuc_keycard
+    spawn --> |find|gillie
+
+    subgraph "Northeast Isles"
+        air_compressor[Air Compressor]
+        dive_suit[Diving suit]
+        dive_beacon[Dive Beacon]
+        dive_loot[Dive loot]
+    end
+    air_compressor -.-> |fill|dive_suit
+    dive_suit -.-> |dive|dive_loot
+    dive_beacon -.-> |use|dive_loot
+
+    subgraph swamp_area ["Swamp"]
+        swamp_temple_tele[/Temple<br/>Teleporter/]
+        nbc_suit[NBC Suit]
+    end
+    swamp_temple_tele --> |teleport|temple_main
+
+    subgraph "Alcatraz"
+        kmuc_keycard[KMUC Keycard]
+    end
+
+    subgraph "Gillie Suit"
+        burlap[10x Burlap Strips]
+        netting[4x Netting]
+        make_gillie[\combine/]
+        class make_gillie action
+        gillie[Gillie Suit]
+    end
+    burlap -.-x |use|make_gillie
+    netting -.-x |use|make_gillie
+    make_gillie -.-> gillie
+
+    subgraph "Bear Suit"
+        bear_pelts[2x Bear Pelts]
+        leather_kit[Leather Kit]
+        bear_suit[Bear Suit]
+        make_bear_suit[\combine/]
+        class make_bear_suit action
+        tanned_bear_pelts[Tanned Bear Pelts]
+        prepare_bear_pelts[\combine/]
+        class prepare_bear_pelts action
+    end
+    bear_pelts -.-x |use|prepare_bear_pelts
+    leather_kit -.-> |use|prepare_bear_pelts
+    prepare_bear_pelts -.-> tanned_bear_pelts
+    tanned_bear_pelts -.-x |use|make_bear_suit
+    gillie -.-x |use|make_bear_suit
+    make_bear_suit --> bear_suit
+
+    subgraph "Crater Island"
+        smoke_grenade[Smoke Grenade]
+    end
+    nbc_suit -.-> |wear|smoke_grenade
+
+    subgraph "KMUC"
+        kmuc_blast_door[Blast Door]
+        staff[Staff]
+    end
+    kmuc_keycard -.-x |open|kmuc_blast_door
+    kmuc_blast_door --> staff
+
+    subgraph "Smoke Monster"
+        smoke_monster[Smoke Monster]
+    end
+    smoke_grenade -.-x |break|smoke_monster
+    staff -.-> |hold|smoke_monster
+    smoke_monster --> |teleport|temple_secondary
+
+    subgraph "South Temple"
+        temple_dive_entry[Underwater<br/>Entry]
+        punchcard[Punch Card]
+        temple_main[Main Temple]
+        temple_secondary[Handle Area]
+        temple_swamp_tele[/Swamp<br/>Teleporter/]
+        temple_flame[Flame]
+        temple_endgame_tele[/Endgame<br/>Teleporter/]
+        hammer_head[Hammer head]
+        hammer_handle[Hammer handle]
+        make_hammer[\combine/]
+        class make_hammer action
+        hammer[Hammer]
+    end
+    dive_suit --> |dive|temple_dive_entry
+    temple_dive_entry -.-> punchcard
+    temple_dive_entry --> temple_main
+    temple_main --> temple_swamp_tele
+    temple_swamp_tele --> |teleport|swamp_area
+    temple_main --> temple_flame
+    temple_flame --> temple_endgame_tele
+    eternal_staff -.-> |ignite|temple_flame
+    temple_endgame_tele --> |teleport|kmuc2_blast_door
+    temple_main -.-> hammer_head
+    temple_secondary -.-> hammer_handle
+    hammer_head -.-x |use|make_hammer
+    hammer_handle -.-x |use|make_hammer
+    make_hammer -.-> hammer
+
+    subgraph "Arctic Temple"
+        temple_ice_door[Ice Door]
+        shipwreck_keycard[Shipwreck<br/>Keycard]
+        eternal_flame[Eternal<br/>Flame]
+        eternal_staff[Eternal<br/>Staff]
+        class make_eternal_staff action
+    end
+    hammer -.-x |hit|temple_ice_door
+    temple_ice_door -.-> shipwreck_keycard
+    temple_ice_door --> eternal_flame
+    staff -.-x |hit|eternal_flame
+    eternal_flame -.-> |ignite|eternal_staff
+
+    subgraph "Arctic Shipwreck"
+        shipwreck_loot[Shipwreck loot]
+    end
+    nbc_suit -.-> |wear|shipwreck_loot
+    shipwreck_keycard -.-x |open|shipwreck_loot
+
+    subgraph "KMUC Upside Down"
+        kmuc2_blast_door[Blast Door]
+        endgame_reactor[Reactor Area]
+        endgame[Endgame]
+    end
+    kmuc_keycard -.-x |open|kmuc2_blast_door
+    kmuc2_blast_door --> endgame_reactor
+    punchcard -.-x |open|endgame_reactor
+    endgame_reactor --> endgame
+    eternal_staff -.-> |ignite|endgame
+    bear_suit -.-> |wear|endgame
+
+    %% Optional loot
+    class dive_beacon,dive_loot optional_loot
+    class netting,burlap optional_loot
+    class shipwreck_keycard,shipwreck_loot optional_loot
+
+    %% Required loot
+    class nbc_suit quest_loot
+    class leather_kit,bear_pelts,gillie quest_loot
+    class dive_suit,air_compressor quest_loot
+    class hammer_head,hammer_handle,hammer quest_loot
+    class staff,smoke_grenade quest_loot
+
+    %% Endgame loot
+    class kmuc_keycard endgame_loot
+    class punchcard endgame_loot
+    class eternal_staff endgame_loot
+    class bear_suit endgame_loot
+
+    %% Places
+    class spawn place
+    class swamp_temple_tele place
+    class kmuc_blast_door place
+    class temple_ice_door,eternal_flame place
+    class temple_dive_entry,temple_main,temple_secondary,temple_flame,temple_swamp_tele,temple_endgame_tele place
+    class kmuc2_blast_door,endgame_reactor,endgame place
+    %% Smokey is an "event" more than a place
+    class smoke_monster place
