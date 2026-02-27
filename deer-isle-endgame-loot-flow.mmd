@@ -1,10 +1,20 @@
 ---
+# This file is synced with https://mermaid.ai/
+id: e97fa42b-16d9-40e7-9625-4883fa1ce345
 config:
-  title: Deer Isle v6.0-beta Quest Flowchart
-  author: "[mrfootoyou](https://github.com/mrfootoyou)"
+  title: Deer Isle 6.0 Endgame Quest - Loot Flowchart
   layout: elk
   theme: default
   look: neo
+  description: |
+    This flowchart outlines the loot items required to complete the Endgame quest. It describes their
+    dependencies and the overall progression leading up to the Endgame quest.
+
+    Survivors can use this flowchart to plan and navigate through the quest efficiently.
+  author: |
+    [mrfootoyou](https://github.com/mrfootoyou)
+  source: |
+    [mrfootoyou/deer-isle-quest](https://github.com/mrfootoyou/deer-isle-quest)
 ---
 flowchart TD
     classDef default fill:#f8fafc,color:#0f172a,stroke:#cbd5e1
@@ -35,18 +45,19 @@ flowchart TD
     spawn ==> |find|kmuc_keycard
     spawn ==> |find|gillie
 
+    %% non-localized loot
     light_source[Light Source]
     spawn ~~~ light_source
 
-    subgraph "`**Northeast Isles**`"
+    subgraph "`**Northeast**`"
         air_compressor[Air Compressor]
-        dive_suit[Diving suit]
-        dive_beacon[Dive Beacon]
-        dive_loot[Dive loot]
+        dive_suit[Diving Suit]
+        beacon_tracker[Beacon Tracker]
+        dive_loot[Dive Loot]
     end
     air_compressor --> |fill|dive_suit
     dive_suit --> |dive|dive_loot
-    dive_beacon --> |use|dive_loot
+    beacon_tracker --> |use|dive_loot
 
     subgraph swamp_area ["`**Swamp**`"]
         swamp_temple_tele[/Temple<br/>Teleporter/]
@@ -115,7 +126,7 @@ flowchart TD
         temple_main[Main Temple]
         temple_secondary[Handle Area]
         temple_swamp_tele[/Swamp<br/>Teleporter/]
-        temple_flame[Flame]
+        temple_flame[Flame Room]
         temple_endgame_tele[/Endgame<br/>Teleporter/]
         hammer_head[Hammer head]
         hammer_handle[Hammer handle]
@@ -173,7 +184,7 @@ flowchart TD
 
     %% Optional loot
     class light_source optional_loot
-    class dive_beacon,dive_loot optional_loot
+    class beacon_tracker,dive_loot optional_loot
     class netting,burlap optional_loot
     class shipwreck_keycard,shipwreck_loot optional_loot
 
