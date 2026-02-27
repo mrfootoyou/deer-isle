@@ -28,6 +28,8 @@ jobs:
             **.mmd
           json: true
           escape_json: false
+      - name: ${{ steps.changed_files.outputs.any_changed == 'true' && 'Changes detected 📝' || 'No changes ✅' }}
+        run: echo '${{ steps.changed_files.outputs.all_changed_files }}'
     outputs:
       any_changed: ${{ steps.changed_files.outputs.any_changed }}
       all_changed_files: ${{ steps.changed_files.outputs.all_changed_files }}
@@ -77,5 +79,5 @@ jobs:
           commit_message: |
             docs: Add automatically generated diagrams
 
-      - name: ${{ steps.auto_commit_action.outputs.changes_detected == 'true' && 'Changes pushed' || 'No changes' }}
+      - name: ${{ steps.auto_commit_action.outputs.changes_detected == 'true' && 'Changes pushed ⚡' || 'No changes ✅' }}
         run: echo '${{ steps.auto_commit_action.outputs.commit_hash }}'
