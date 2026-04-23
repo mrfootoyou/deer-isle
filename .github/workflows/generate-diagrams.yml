@@ -32,18 +32,20 @@ jobs:
         with:
           output_renamed_files_as_deleted_and_added: true
           since_last_remote_commit: true
-          quotepath: false
+          json: true
+          escape_json: false
           files: |
             **/*.mmd
 
       - name: |
           ${{ steps.changed_files.outputs.any_modified == 'true' && 'Changes detected 📝' || 'No changes ✅' }}
-        run: echo '${{ toJson(steps.changed_files.outputs.all_modified_files) }}'
+        run: |
+          echo "${{ steps.changed_files.outputs.all_changed_files_count }} changed, ${{ steps.changed_files.outputs.deleted_files_count }} deleted files."
 
     outputs:
       any_modified: ${{ steps.changed_files.outputs.any_modified }}
-      changed_files: ${{ steps.changed_files.outputs.all_changed_files }}
-      deleted_files: ${{ steps.changed_files.outputs.deleted_files }}
+      changed_files_json: ${{ steps.changed_files.outputs.all_changed_files }}
+      deleted_files_json: ${{ steps.changed_files.outputs.deleted_files }}
 
   generate-diagrams:
     name: Generate diagrams
@@ -54,9 +56,6 @@ jobs:
       # Note: This job will fail if the PR is from a forked repository. We'll need to identify a better
       # way to handle forks should the need ever arise. A `pull_request_target` trigger may be a solution.
       contents: write
-    env:
-      CHANGED_FILES: ${{ needs.changed_files.outputs.changed_files }}
-      DELETED_FILES: ${{ needs.changed_files.outputs.deleted_files }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -75,10 +74,11 @@ jobs:
           fonts: Recursive
 
       - name: Generate diagram images
+        env:
+          CHANGED_FILES_JSON: ${{ needs.changed_files.outputs.changed_files_json }}
         shell: pwsh
         run: |
-          $changedFiles = $env:CHANGED_FILES.Split("`n").where{ $_ }
-          $changedFiles | ForEach-Object -Parallel {
+          "$env:CHANGED_FILES_JSON" | ConvertFrom-Json | ForEach-Object -Parallel {
               $file = Get-Item $_
               $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($file.Name, $env:IMAGE_TYPE))
               Write-Host "Processing: '$file' -> '$imagePath'"
@@ -92,11 +92,12 @@ jobs:
           }
 
       - name: Delete orphaned diagram images
+        env:
+          DELETED_FILES_JSON: ${{ needs.changed_files.outputs.deleted_files_json }}
         shell: pwsh
         run: |
-          $deletedFiles = $env:DELETED_FILES.Split("`n").where{ $_ }
-          foreach ($filePath in $deletedFiles) {
-              $fileName = Split-Path $filePath -Leaf
+          "$env:DELETED_FILES_JSON" | ConvertFrom-Json | ForEach-Object {
+              $fileName = Split-Path $_ -Leaf
               $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($fileName, $env:IMAGE_TYPE))
               if (Test-Path $imagePath) {
                   Write-Host "Pruning orphaned diagram image: '$imagePath'"
