@@ -20,18 +20,13 @@ jobs:
     name: Check for changed diagrams
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      pull-requests: read
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 2 # retrieve the preceding commit.
-
       - name: Get changed files
         id: changed_files
         uses: tj-actions/changed-files@v47
         with:
           output_renamed_files_as_deleted_and_added: true
-          since_last_remote_commit: true
           json: true
           escape_json: false
           files: |
