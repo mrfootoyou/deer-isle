@@ -2,26 +2,35 @@
 name: "Generate Diagrams"
 
 on:
-  pull_request:
+  push:
+    branches-ignore:
+      - main # protected
 
 env:
   MERMAID_CLI_VERSION: "11.12.0"
   MERMAID_CONFIG_PATH: ./docs/generated/mermaid-config.json
   PUPPETEER_CONFIG_PATH: ./docs/generated/puppeteer-config.json
   IMAGE_OUTPUT_DIR: ./docs/generated
-  IMAGE_TYPE: png
-  IMAGE_MAX_WIDTH: 100000
-  IMAGE_MAX_HEIGHT: 100000
+  IMAGE_TYPE: png,svg
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  changed_files:
-    name: Check for changed diagrams
+  generate-diagrams:
+    name: Generate diagrams
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # compare the preceding remote commit
+
       - name: Get changed files
         id: changed_files
         uses: tj-actions/changed-files@v47
@@ -37,71 +46,64 @@ jobs:
         run: |
           echo "${{ steps.changed_files.outputs.all_changed_files_count }} changed, ${{ steps.changed_files.outputs.deleted_files_count }} deleted files."
 
-    outputs:
-      any_modified: ${{ steps.changed_files.outputs.any_modified }}
-      changed_files_json: ${{ steps.changed_files.outputs.all_changed_files }}
-      deleted_files_json: ${{ steps.changed_files.outputs.deleted_files }}
-
-  generate-diagrams:
-    name: Generate diagrams
-    needs: changed_files
-    if: needs.changed_files.outputs.any_modified == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      # Note: This job will fail if the PR is from a forked repository. We'll need to identify a better
-      # way to handle forks should the need ever arise. A `pull_request_target` trigger may be a solution.
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
       - name: Setup Node.js
+        if: steps.changed_files.outputs.any_modified == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 24
 
       - name: Install mermaid-cli
+        if: steps.changed_files.outputs.any_modified == 'true'
         run: npm install -g "@mermaid-js/mermaid-cli@$MERMAID_CLI_VERSION"
 
       - name: Install Google Fonts (Recursive)
+        if: steps.changed_files.outputs.any_modified == 'true'
         uses: jim60105/action-install-google-fonts@v2
         with:
           fonts: Recursive
 
       - name: Generate diagram images
+        if: steps.changed_files.outputs.any_changed == 'true'
         env:
-          CHANGED_FILES_JSON: ${{ needs.changed_files.outputs.changed_files_json }}
+          CHANGED_FILES_JSON: ${{ steps.changed_files.outputs.all_changed_files }}
         shell: pwsh
         run: |
           "$env:CHANGED_FILES_JSON" | ConvertFrom-Json | ForEach-Object -Parallel {
               $file = Get-Item $_
-              $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($file.Name, $env:IMAGE_TYPE))
-              Write-Host "Processing: '$file' -> '$imagePath'"
+              foreach ($ext in $env:IMAGE_TYPE.Split(',')) {
+                  $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($file.Name, $ext))
+                  Write-Host "Processing: '$file' -> '$imagePath'"
 
-              mmdc `
-                  --input $file `
-                  --output $imagePath `
-                  --width $env:IMAGE_MAX_WIDTH --height $env:IMAGE_MAX_HEIGHT `
-                  --configFile $env:MERMAID_CONFIG_PATH `
-                  --puppeteerConfigFile $env:PUPPETEER_CONFIG_PATH
+                  mmdc `
+                      --input $file `
+                      --output $imagePath `
+                      --scale 4 `
+                      --svgId diegl `
+                      --configFile $env:MERMAID_CONFIG_PATH `
+                      --puppeteerConfigFile $env:PUPPETEER_CONFIG_PATH
+              }
           }
 
       - name: Delete orphaned diagram images
+        if: steps.changed_files.outputs.any_deleted == 'true'
         env:
-          DELETED_FILES_JSON: ${{ needs.changed_files.outputs.deleted_files_json }}
+          DELETED_FILES_JSON: ${{ steps.changed_files.outputs.deleted_files }}
         shell: pwsh
         run: |
           "$env:DELETED_FILES_JSON" | ConvertFrom-Json | ForEach-Object {
               $fileName = Split-Path $_ -Leaf
-              $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($fileName, $env:IMAGE_TYPE))
-              if (Test-Path $imagePath) {
-                  Write-Host "Pruning orphaned diagram image: '$imagePath'"
-                  Remove-Item $imagePath
+              foreach ($ext in $env:IMAGE_TYPE.Split(',')) {
+                  $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($fileName, $ext))
+                  if (Test-Path $imagePath) {
+                      Write-Host "Deleting orphaned diagram image: '$imagePath'"
+                      Remove-Item $imagePath
+                  }
               }
           }
 
       - name: Atomic commit
         id: auto_commit_action
+        if: steps.changed_files.outputs.any_modified == 'true'
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           file_pattern: "${{ env.IMAGE_OUTPUT_DIR }}/*"

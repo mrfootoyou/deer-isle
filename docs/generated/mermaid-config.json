@@ -1,5 +1,7 @@
 {
   "themeVariables": {
     "fontFamily": "Recursive, 'Noto Sans', sans-serif"
-  }
+  },
+  "deterministicIds": true,
+  "deterministicIDSeed": "deer-isle-quest"
 }

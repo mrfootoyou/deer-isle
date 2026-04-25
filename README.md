@@ -10,7 +10,7 @@ Survivors can use this flowchart to plan and navigate through the quest efficien
 
 _(Open image in a new tab to view full size.)_
 
-[![Deer Isle Endgame Loot Flow](docs/generated/deer-isle-endgame-loot-flow.png)](docs/generated/deer-isle-endgame-loot-flow.png)
+[![Deer Isle Endgame Loot Flow](docs/generated/deer-isle-endgame-loot-flow.svg)](docs/generated/deer-isle-endgame-loot-flow.svg)
 
 ## How to Contribute
 
