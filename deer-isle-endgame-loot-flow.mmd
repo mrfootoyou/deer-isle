@@ -1,5 +1,6 @@
 ---
 # This file is synced with https://mermaid.ai/
+# spell:ignore mrfootoyou dasharray kmuc ghillie Mjolnir
 id: e97fa42b-16d9-40e7-9625-4883fa1ce345
 config:
   title: Deer Isle 6.0 Endgame Quest - Tactical Loot Flow
@@ -15,15 +16,13 @@ config:
     [mrfootoyou/deer-isle-quest](https://github.com/mrfootoyou/deer-isle-quest)
 ---
 flowchart TD
-    %% spell:ignore mrfootoyou dasharray kmuc ghillie Mjolnir
-
     %% TACTICAL CLASS DEFINITIONS
     classDef default fill:#1e293b,color:#f8fafc,stroke:#475569,stroke-width:1px
     classDef action fill:#475569,color:#ffffff,stroke:#1e293b,stroke-width:1px
     classDef place fill:#0f172a,color:#38bdf8,stroke:#0ea5e9,stroke-width:2px
     classDef endgame_loot fill:#eab308,color:#422006,stroke:#854d0e,stroke-width:3px
     classDef quest_loot fill:#22c55e,color:#052e16,stroke:#14532d,stroke-width:2px
-    classDef optional_loot fill:#64748b,color:#f1f5f9,stroke:#475569,stroke-dasharray: 5 5
+    classDef optional_loot fill:#64748b,color:#f1f5f9,stroke:#475569,stroke-width:2px,stroke-dasharray:5\,5
     classDef terminal fill:#fbbf24,color:#000000,stroke:#d97706,stroke-width:4px
 
     subgraph flowchart_key ["`**TACTICAL KEY**`"]
@@ -49,11 +48,11 @@ flowchart TD
     flowchart_key ~~~ spawn
 
     spawn(["`**SPAWN 🏁**`"])
-    spawn ==> |find|dive_suit
-    spawn ==> |collect|nbc_suit
-    spawn ==> |travel|swamp_temple_teleport
-    spawn ==> |find|purple_keycard
-    spawn ==> |find|ghillie
+    spawn --> |find|dive_suit
+    spawn --> |collect|nbc_suit
+    spawn --> |travel|swamp_temple_teleport
+    spawn --> |find|purple_keycard
+    spawn --> |find|ghillie
 
     %% NON-LOCALIZED UTILITY
     light_source[Light Source 🔦]
@@ -126,13 +125,13 @@ flowchart TD
     smoke_monster([Smoke Monster 💨])
     smoke_orb --x |conjure|smoke_monster
     staff --> |tame|smoke_monster
-    smoke_monster ==> |teleport|temple_secondary
+    smoke_monster ==> |teleport|temple_handle_area
 
-    subgraph old_temple ["`**OLD TEMPLE 🏛️**`"]
+    subgraph old_temple ["`**TEMPLE ISLAND 🏛️**`"]
         temple_dive_entry([Underwater Entry 🌊])
         punch_card[Punch Card 💾]
-        temple_main([Main Temple 🛕])
-        temple_secondary([Handle Area 🧭])
+        temple_main([Old Temple 🛕])
+        temple_handle_area([Handle Area 🧭])
         temple_swamp_teleport([Swamp Teleport 🌀])
         temple_flame([Flame Room 🔥])
         temple_endgame_teleport([Endgame Teleport ⚡])
@@ -146,13 +145,14 @@ flowchart TD
     temple_dive_entry ==> temple_main
     temple_main ==> temple_swamp_teleport
     temple_swamp_teleport ==> swamp_area
-    temple_main ==> temple_flame
-    temple_flame ==> temple_endgame_teleport
+    temple_main === temple_flame
+    temple_flame === temple_endgame_teleport
     eternal_staff --> |ignite|temple_flame
-    temple_endgame_teleport ==> kmuc2_blast_door
+    temple_endgame_teleport ==> endgame_blast_door
     temple_main --> hammer_head
-    light_source -.-> |illuminate|temple_secondary
-    temple_secondary --> hammer_handle
+    light_source -.-> |illuminate|temple_handle_area
+    temple_handle_area --> hammer_handle
+    temple_handle_area === temple_swamp_teleport
     hammer_head --x make_hammer
     hammer_handle --x make_hammer
     make_hammer --> hammer
@@ -165,7 +165,7 @@ flowchart TD
     end
     hammer --x |smash|crypt_door
     crypt_door --> green_keycard
-    crypt_door ==> eternal_flame
+    crypt_door === eternal_flame
     staff --x |whack|eternal_flame
     eternal_flame --> eternal_staff
 
@@ -176,21 +176,21 @@ flowchart TD
     green_keycard --x |unlock|carrier_loot
 
     subgraph kmuc_endgame ["`**KMUC ENDGAME 🙃**`"]
-        kmuc2_blast_door([Blast Door 🔒])
+        endgame_blast_door([Blast Door 🔒])
         endgame_reactor([Reactor Room ☢️])
         endgame[[**ENDGAME 🏆**]]
     end
-    purple_keycard --x |unlock|kmuc2_blast_door
-    kmuc2_blast_door ==> endgame_reactor
+    purple_keycard --x |unlock|endgame_blast_door
+    endgame_blast_door === endgame_reactor
     punch_card --x |authorize|endgame_reactor
-    endgame_reactor ==> endgame
+    endgame_reactor === endgame
     eternal_staff --> |activate|endgame
     bear_suit --> |survive|endgame
 
     %% ASSIGN CLASSES
     class spawn,swamp_temple_teleport,crater_tower,kmuc_blast_door,crypt_door,eternal_flame place
-    class temple_dive_entry,temple_main,temple_secondary,temple_flame,temple_swamp_teleport,temple_endgame_teleport place
-    class kmuc2_blast_door,endgame_reactor place
+    class temple_dive_entry,temple_main,temple_handle_area,temple_flame,temple_swamp_teleport,temple_endgame_teleport place
+    class endgame_blast_door,endgame_reactor place
     class smoke_monster place
 
     class nbc_suit,leather_kit,bear_pelts,ghillie quest_loot
