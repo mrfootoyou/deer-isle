@@ -1,85 +1,115 @@
+# spell:ignore quotepath mmdc stefanzweifel
 name: "Generate Diagrams"
 
 on:
   pull_request:
-    branches:
-      - "**"
-
-env:
-  IMAGE_OUTPUT_DIR: ./docs/generated
-  IMAGE_TYPE: png
-  IMAGE_MAX_WIDTH: 100000
-  IMAGE_MAX_HEIGHT: 100000
+  workflow_dispatch:
+    inputs:
+      # checkov:skip=CKV_GHA_7: Diagram input is validated to be file paths within the repository.
+      diagrams:
+        description: |
+          Comma-separated list of diagram files to process (supports glob patterns)
+        required: true
+        default: "**/*.mmd"
 
 permissions: {}
 
-jobs:
-  changed_files:
-    name: Check for changed diagrams
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      - name: Get changed files
-        id: changed_files
-        uses: tj-actions/changed-files@v47
-        with:
-          files: |
-            **.mmd
-          json: true
-          escape_json: false
-      - name: ${{ steps.changed_files.outputs.any_changed == 'true' && 'Changes detected 📝' || 'No changes ✅' }}
-        run: echo '${{ steps.changed_files.outputs.all_changed_files }}'
-    outputs:
-      any_changed: ${{ steps.changed_files.outputs.any_changed }}
-      all_changed_files: ${{ steps.changed_files.outputs.all_changed_files }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 
+jobs:
   generate-diagrams:
     name: Generate diagrams
-    needs: changed_files
-    if: needs.changed_files.outputs.any_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
-      # Note: This job will fail if the PR is from a forked repository. We'll need to identify a better
-      # way to handle forks should the need ever arise. A `pull_request_target` trigger may be a solution.
       contents: write
+    env:
+      # Default values. Will be overridden below.
+      ANY_CHANGED: false
+      CHANGED_FILES_JSON: ""
+      ANY_DELETED: false
+      DELETED_FILES_JSON: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Install font # requires Ubuntu runner
-        uses: jim60105/action-install-google-fonts@v2
         with:
-          fonts: 'Recursive'
+          # needed to get the full git history for changed-files action
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && 1 || 0 }}
 
-      - name: Generate Mermaid diagrams
+      - name: Get changed files (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         env:
-          CHANGED_FILES_JSON: ${{ needs.changed_files.outputs.all_changed_files }}
-          MERMAID_CONFIG_PATH: ./docs/generated/mermaid-config.json
-          PUPPETEER_CONFIG_PATH: ./docs/generated/puppeteer-config.json
+          INPUT_DIAGRAMS: ${{ github.event.inputs.diagrams }}
         run: |
-          $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true
-          npm install -g @mermaid-js/mermaid-cli
-          foreach ($file in $env:CHANGED_FILES_JSON | ConvertFrom-Json | Get-Item) {
-            $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($file.Name, $env:IMAGE_TYPE))
-            Write-Host "Processing: '$file' -> '$imagePath'"
-            npx -p @mermaid-js/mermaid-cli mmdc `
-                --input $file `
-                --output $imagePath `
-                --width $env:IMAGE_MAX_WIDTH --height $env:IMAGE_MAX_HEIGHT `
-                --configFile $env:MERMAID_CONFIG_PATH `
-                --puppeteerConfigFile $env:PUPPETEER_CONFIG_PATH
+          # For manual triggers, we need to resolve the input glob patterns to actual
+          # file paths. We ignore any paths that are outside the repository.
+          $changedFiles = (
+              "$env:INPUT_DIAGRAMS".Split(',') |
+              ForEach-Object { $_.Trim() -replace '^\*\*/','' } |
+              ForEach-Object { if ($_) { git ls-files "$_" } } |
+              Select-Object -Unique
+          )
+          echo "ANY_CHANGED=$($changedFiles.Count -gt 0)" >> $GITHUB_ENV
+          echo "CHANGED_FILES_JSON=$($changedFiles | ConvertTo-Json -Compress -AsArray)" >> $GITHUB_ENV
+
+      - name: Get changed files (event trigger)
+        id: changed_files
+        if: github.event_name != 'workflow_dispatch'
+        uses: tj-actions/changed-files@v47
+        with:
+          since_last_remote_commit: true
+          output_renamed_files_as_deleted_and_added: true
+          json: true
+          escape_json: false
+          files: |
+            **/*.mmd
+
+      - name: Set environment variables
+        if: steps.changed_files.outcome == 'success'
+        env:
+          ANY_CHANGED: ${{ steps.changed_files.outputs.any_changed == 'true' }}
+          CHANGED_FILES_JSON: ${{ steps.changed_files.outputs.all_changed_files }}
+          ANY_DELETED: ${{ steps.changed_files.outputs.any_deleted == 'true' }}
+          DELETED_FILES_JSON: ${{ steps.changed_files.outputs.deleted_files }}
+        run: |
+          echo "ANY_CHANGED=$ANY_CHANGED" >> $GITHUB_ENV
+          echo "CHANGED_FILES_JSON=$CHANGED_FILES_JSON" >> $GITHUB_ENV
+          echo "ANY_DELETED=$ANY_DELETED" >> $GITHUB_ENV
+          echo "DELETED_FILES_JSON=$DELETED_FILES_JSON" >> $GITHUB_ENV
+
+      - name: Generate diagram images
+        if: env.ANY_CHANGED == 'true'
+        shell: pwsh
+        run: |
+          $diagrams = "$env:CHANGED_FILES_JSON" | ConvertFrom-Json
+          ./build.ps1 build -- -UseDocker -Diagrams $diagrams
+
+      - name: Delete orphaned diagram images
+        if: env.ANY_DELETED == 'true'
+        shell: pwsh
+        run: |
+          "$env:DELETED_FILES_JSON" | ConvertFrom-Json | ForEach-Object {
+              $fileName = Split-Path $_ -Leaf
+              foreach ($ext in @('png', 'svg')) {
+                  $imagePath = Join-Path './docs/generated' ([System.IO.Path]::ChangeExtension($fileName, $ext))
+                  if (Test-Path $imagePath) {
+                      Write-Host "Deleting orphaned diagram image: '$imagePath'"
+                      Remove-Item $imagePath
+                  }
+              }
           }
 
-      - name: Commit generated files
+      - name: Atomic commit
         id: auto_commit_action
+        if: env.ANY_CHANGED == 'true' || env.ANY_DELETED == 'true'
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          file_pattern: ${{ env.IMAGE_OUTPUT_DIR }}/*
-          commit_message: |
-            docs: Add automatically generated diagrams
+          file_pattern: ./docs/generated/*
+          commit_message: "docs(diagrams): automatically generated diagram images"
 
-      - name: ${{ steps.auto_commit_action.outputs.changes_detected == 'true' && 'Changes pushed ⚡' || 'No changes ✅' }}
-        run: echo '${{ steps.auto_commit_action.outputs.commit_hash }}'
+      - name: "${{ steps.auto_commit_action.outputs.changes_detected == 'true' &&
+          'Changes pushed ⚡' || 'No changes ✅' }}"
+        if: steps.auto_commit_action.outputs.changes_detected == 'true'
+        run: |
+          echo "Commit ID: ${{ steps.auto_commit_action.outputs.commit_hash }}"
