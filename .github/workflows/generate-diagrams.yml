@@ -2,9 +2,7 @@
 name: "Generate Diagrams"
 
 on:
-  push:
-    branches-ignore:
-      - main # protected
+  pull_request:
   workflow_dispatch:
     inputs:
       diagrams:
@@ -34,6 +32,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # needed to get the full git history for changed-files action
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && 1 || 0 }}
 
       - name: Get changed files (manual trigger)
         if: github.event_name == 'workflow_dispatch'
@@ -57,6 +58,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         uses: tj-actions/changed-files@v47
         with:
+          since_last_remote_commit: true
           output_renamed_files_as_deleted_and_added: true
           json: true
           escape_json: false

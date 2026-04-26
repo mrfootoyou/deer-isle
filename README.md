@@ -29,7 +29,7 @@ as it may result in your PR being delayed or rejected.
 ### Generating Diagram Images
 
 The PNG and SVG images associated with the Mermaid diagram are **auto-generated** when a diagram
-change is pushed to GitHub. You can manually generate the images by executing:
+change is pushed to a GitHub PR. You can manually generate the images by executing:
 
 ```powershell
 ./build.ps1 build
