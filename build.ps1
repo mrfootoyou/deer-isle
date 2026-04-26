@@ -269,7 +269,6 @@ Task build -desc 'Build diagrams' -dependsOn version {
         $dockerRunArgs = @(
             'run'
             '--rm'
-            '-it'
             '--volume', '.:/data'
             if ($IsLinux -or $IsMacOS) { '--user', "$(id -u):$(id -g)" }
             $MermaidDockerImageName

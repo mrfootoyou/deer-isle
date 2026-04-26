@@ -3,7 +3,12 @@
 param()
 
 $MermaidCliVersionMin = [version]'11.12.0'
-$MermaidDockerImageName = "docker.io/minlag/mermaid-cli:$MermaidCliVersionMin"
+$MermaidDockerImageName = (
+    $env:GITHUB_ACTIONS -eq 'true' `
+        ? "ghcr.io/mermaid-js/mermaid-cli/mermaid-cli:$MermaidCliVersionMin" `
+        : "docker.io/minlag/mermaid-cli:$MermaidCliVersionMin"
+)
+
 $null = $MermaidDockerImageName # avoid "assigned but not used" warning
 
 Import-Module "$PSScriptRoot/PSTaskFramework/BuildHelpers"

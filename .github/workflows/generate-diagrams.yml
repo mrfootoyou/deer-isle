@@ -13,13 +13,6 @@ on:
         required: true
         default: "**/*.mmd"
 
-env:
-  MERMAID_CLI_VERSION: "11.12.0"
-  MERMAID_CONFIG_PATH: ./docs/generated/mermaid-config.json
-  PUPPETEER_CONFIG_PATH: ./docs/generated/puppeteer-config.json
-  IMAGE_OUTPUT_DIR: ./docs/generated
-  IMAGE_TYPE: png,svg
-
 permissions: {}
 
 concurrency:
@@ -83,41 +76,12 @@ jobs:
           echo "ANY_DELETED=$ANY_DELETED" >> $GITHUB_ENV
           echo "DELETED_FILES_JSON=$DELETED_FILES_JSON" >> $GITHUB_ENV
 
-      - name: Setup Node.js
-        if: env.ANY_CHANGED == 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - name: Install mermaid-cli
-        if: env.ANY_CHANGED == 'true'
-        run: npm install -g "@mermaid-js/mermaid-cli@$MERMAID_CLI_VERSION"
-
-      - name: Install Google Fonts (Recursive)
-        if: env.ANY_CHANGED == 'true'
-        uses: jim60105/action-install-google-fonts@v2
-        with:
-          fonts: Recursive
-
       - name: Generate diagram images
         if: env.ANY_CHANGED == 'true'
         shell: pwsh
         run: |
-          "$env:CHANGED_FILES_JSON" | ConvertFrom-Json | ForEach-Object -Parallel {
-              $file = Get-Item $_
-              foreach ($ext in $env:IMAGE_TYPE.Split(',')) {
-                  $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($file.Name, $ext))
-                  Write-Host "Processing: '$file' -> '$imagePath'"
-
-                  mmdc `
-                      --input $file `
-                      --output $imagePath `
-                      --scale 4 `
-                      --svgId diegl `
-                      --configFile $env:MERMAID_CONFIG_PATH `
-                      --puppeteerConfigFile $env:PUPPETEER_CONFIG_PATH
-              }
-          }
+          $diagrams = "$env:CHANGED_FILES_JSON" | ConvertFrom-Json
+          ./build.ps1 build -- -UseDocker -Diagrams $diagrams
 
       - name: Delete orphaned diagram images
         if: env.ANY_DELETED == 'true'
@@ -125,8 +89,8 @@ jobs:
         run: |
           "$env:DELETED_FILES_JSON" | ConvertFrom-Json | ForEach-Object {
               $fileName = Split-Path $_ -Leaf
-              foreach ($ext in $env:IMAGE_TYPE.Split(',')) {
-                  $imagePath = Join-Path $env:IMAGE_OUTPUT_DIR ([System.IO.Path]::ChangeExtension($fileName, $ext))
+              foreach ($ext in @('png', 'svg')) {
+                  $imagePath = Join-Path './docs/generated' ([System.IO.Path]::ChangeExtension($fileName, $ext))
                   if (Test-Path $imagePath) {
                       Write-Host "Deleting orphaned diagram image: '$imagePath'"
                       Remove-Item $imagePath
@@ -139,7 +103,7 @@ jobs:
         if: env.ANY_CHANGED == 'true' || env.ANY_DELETED == 'true'
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          file_pattern: "${{ env.IMAGE_OUTPUT_DIR }}/*"
+          file_pattern: ./docs/generated/*
           commit_message: "docs(diagrams): automatically generated diagram images"
 
       - name: "${{ steps.auto_commit_action.outputs.changes_detected == 'true' &&
