@@ -4,5 +4,5 @@ The image files in this folder are auto-generated and should not be edited direc
 make changes, please edit the source files (e.g., .mmd files for diagrams) and then create a pull
 request to update the generated files.
 
-See [.github/workflows/generate-diagrams.yml](../.github/workflows/generate-diagrams.yml) for
-details on how the images are generated and committed back to the repository.
+See [.github/workflows/autofix.yml](../.github/workflows/autofix.yml) for details on how the images
+are generated and committed back to the repository.
