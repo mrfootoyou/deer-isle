@@ -5,6 +5,7 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      # checkov:skip=CKV_GHA_7: Diagram input is validated to be file paths within the repository.
       diagrams:
         description: |
           Comma-separated list of diagram files to process (supports glob patterns)
@@ -15,7 +16,6 @@ permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   generate-diagrams:
