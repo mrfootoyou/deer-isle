@@ -25,7 +25,7 @@
     Source: http://github.com/mrfootoyou/pstaskframework
 #>
 #Requires -Version 7.4
-# spell:ignore diegl,mmdc,minlag
+# spell:ignore mmdc infa
 
 [CmdletBinding(PositionalBinding = $false)]
 param (
@@ -120,7 +120,7 @@ Task bootstrap -desc 'Installs required tools' {
     Import-Module InstallHelpers -Verbose:$false
     . "$ScriptsDir/helpers.ps1"
 
-    $dockerExists = testDockerExists
+    $dockerExists = Test-DockerExists
     if ($UseDocker -and !$dockerExists) {
         Write-Host "Docker is required to use the -UseDocker option. See https://www.docker.com/get-started." -ForegroundColor Magenta
         # keep going
@@ -128,8 +128,8 @@ Task bootstrap -desc 'Installs required tools' {
     if (!$UseDocker) {
         # Try to find Mermaid CLI locally. If it's not found or the version is too old,
         # we'll fall back to using Docker (if available).
-        if (($mmdc = getLocalMermaidCliPath -ErrorAction Ignore)) {
-            $mmdcVersion = getLocalMermaidCliVersion -ErrorAction Continue
+        if (($mmdc = Assert-AppExists 'mmdc' -PassThru -ErrorAction Ignore)) {
+            $mmdcVersion = Invoke-Shell -infa Ignore -ea Continue -- mmdc --version
             if (!$mmdcVersion) {
                 # ignore installed mmdc if we can't determine the version
                 $mmdc = $null
@@ -147,22 +147,22 @@ Task bootstrap -desc 'Installs required tools' {
         }
         if (!$mmdc) {
             # don't override the user's choice if they explicitly specified -UseDocker:$false
-            $UseDocker = !$PSBoundParameters.ContainsKey('UseDocker')
-            if (!$UseDocker -or !$dockerExists) {
-                Write-Host "Mermaid CLI $MermaidCliVersionMin (or later) or Docker is required to build the diagrams. See https://mermaid.ai/ or https://www.docker.com/get-started." -ForegroundColor Magenta
+            $UseDocker = $dockerExists -and !$PSBoundParameters.ContainsKey('UseDocker')
+            if (!$UseDocker -and !(Test-NpmExists)) {
+                Write-Host "Mermaid CLI $MermaidCliVersionMin (or later) or Docker or Node.js is required to build the diagrams. See https://mermaid.ai/ or https://www.docker.com/get-started." -ForegroundColor Magenta
             }
         }
     }
-    if ($UseDocker -and $dockerExists) {
+    if ($UseDocker) {
         Write-Host "Pulling Mermaid CLI Docker image..." -ForegroundColor Blue
-        Invoke-Shell -InformationAction Continue -- docker pull $MermaidDockerImageName
+        Invoke-Shell -infa Continue -- docker pull $MermaidDockerImage
     }
 
     $appsToInstall = [ordered]@{
         'git'        = $null # well-known app
         'powershell' = $null # well-known app
     }
-    Install-RequiredApp $appsToInstall -InstallPackageManagers -InformationAction Continue -Verbose:($VerbosePreference -eq 'Continue')
+    Install-RequiredApp $appsToInstall -InstallPackageManagers -infa Continue -Verbose:($VerbosePreference -eq 'Continue')
 }
 
 Task version -desc 'Display tool versions' {
@@ -221,86 +221,27 @@ Task build -desc 'Build diagrams' -dependsOn version {
         # Forces use of Docker to run Mermaid CLI, even if a local installation is available.
         [switch] $UseDocker
     )
+    . "$ScriptsDir/helpers.ps1"
 
     $Diagrams = $Diagrams | Resolve-Path -Relative
 
-    . "$ScriptsDir/helpers.ps1"
-
-    $dockerExists = testDockerExists
-    if ($UseDocker -and !$dockerExists) {
-        throw "Docker is required to use the -UseDocker option. See https://www.docker.com/get-started."
-    }
-
-    if (!$UseDocker) {
-        # Try to find Mermaid CLI locally. If it's not found or the version is too old,
-        # we'll fall back to using Docker (if available).
-        if (($mmdc = getLocalMermaidCliPath -ErrorAction Ignore)) {
-            $mmdcVersion = getLocalMermaidCliVersion -ErrorAction Continue
-            if (!$mmdcVersion) {
-                # ignore installed mmdc if we can't determine the version
-                $mmdc = $null
-            }
-            elseif ($mmdcVersion -ge $MermaidCliVersionMin) {
-                # all good
-            }
-            elseif ($dockerExists) {
-                Write-Host "Mermaid CLI $mmdcVersion is installed but older than $MermaidCliVersionMin. Will use Docker image instead." -ForegroundColor Yellow
-                $mmdc = $null
-            }
-            else {
-                Write-Host "Mermaid CLI $mmdcVersion is installed but old. Consider upgrading to $MermaidCliVersionMin or later from https://mermaid.ai/." -ForegroundColor Yellow
-            }
-        }
-        if (!$mmdc) {
-            # don't override the user's choice if they explicitly specified -UseDocker:$false
-            $UseDocker = !$PSBoundParameters.ContainsKey('UseDocker')
-            if (!$UseDocker -or !$dockerExists) {
-                throw "Mermaid CLI $MermaidCliVersionMin (or later) or Docker is required to build the diagrams. See https://mermaid.ai/ or https://www.docker.com/get-started."
-            }
-        }
-    }
-
-    $pathSepChar = [System.IO.Path]::DirectorySeparatorChar
-    function convertPath ($path) { "$path" -replace '[\\/]', $pathSepChar }
-
-    if ($UseDocker) {
-        $pathSepChar = '/' # container expects POSIX-style paths
-
-        $dockerRunArgs = @(
-            'run'
-            '--rm'
-            '--volume', '.:/data'
-            if ($IsLinux -or $IsMacOS) { '--user', "$(id -u):$(id -g)" }
-            $MermaidDockerImageName
-        )
-
-        $mmdcVersion = Invoke-Shell -- docker @dockerRunArgs --version
-        Write-Host "Using Mermaid CLI $mmdcVersion in Docker image $MermaidDockerImageName." -ForegroundColor Green
-    }
-    else {
-        Write-Host "Using Mermaid CLI $mmdcVersion." -ForegroundColor Green
+    $dockerArgs = @{}
+    if ($PSBoundParameters.ContainsKey('UseDocker')) {
+        $dockerArgs['UseDocker'] = $UseDocker.IsPresent
     }
 
     foreach ($filePath in $Diagrams) {
-        foreach ($ext in $ImageExtensions) {
-            $fileName = [System.IO.Path]::GetFileName($filePath)
-            $imagePath = "docs/generated/$([System.IO.Path]::ChangeExtension($fileName, $ext))"
-            Write-Host "Processing: '$filePath' -> '$imagePath'"
+        $fileBaseName = Split-Path $filePath -LeafBase
+        foreach ($ext in $ImageExtensions.foreach{ $_.TrimStart('.').ToLower() }) {
+            $imagePath = "./docs/generated/$fileBaseName.$ext"
 
-            $mmdcArgs = @(
-                '--input', (convertPath $filePath)
-                '--output', (convertPath $imagePath)
-                '--scale', '4'
-                '--svgId', 'diegl'
-                '--configFile', (convertPath 'docs/generated/mermaid-config.json')
-                if (!$UseDocker) { '--puppeteerConfigFile', (convertPath 'docs/generated/puppeteer-config.json') }
-            )
+            Convert-MermaidFileToImage $filePath $imagePath @dockerArgs
 
-            if ($UseDocker) {
-                Invoke-Shell -InformationAction $InformationPreference -- docker @dockerRunArgs @mmdcArgs
+            if ($ext -eq 'png') {
+                Optimize-PngImage $imagePath @dockerArgs
             }
-            else {
-                Invoke-Shell -InformationAction $InformationPreference -- $mmdc @mmdcArgs
+            if ($ext -eq 'svg') {
+                Optimize-SvgImage $imagePath @dockerArgs
             }
         }
     }
