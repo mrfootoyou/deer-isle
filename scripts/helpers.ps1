@@ -1,5 +1,5 @@
 #Requires -Version 7.4
-# spell:ignore minlag mmdc diegl infa Oxipng svgo
+# spell:ignore minlag mmdc infa Oxipng svgo
 param()
 
 $RepositoryRoot = Convert-Path "$PSScriptRoot/.."
@@ -14,10 +14,24 @@ $MermaidDockerImage = (
 Import-Module "$PSScriptRoot/PSTaskFramework/BuildHelpers"
 
 function Test-DockerExists {
+    <#
+    .DESCRIPTION
+        Checks if Docker is present on the system.
+        Note that just because Docker is installed doesn't mean it's functional (e.g.
+        Docker Desktop may not be running).
+    #>
+    [OutputType([bool])]
+    param()
     $null -ne (Assert-AppExists 'docker' -PassThru -ErrorAction Ignore)
 }
 
 function Test-NpmExists {
+    <#
+    .DESCRIPTION
+        Checks if Node.js (npm) is present on the system.
+    #>
+    [OutputType([bool])]
+    param()
     $null -ne (Assert-AppExists 'npm' -PassThru -ErrorAction Ignore)
 }
 
@@ -65,7 +79,7 @@ function Convert-MermaidFileToImage {
         '--input', $Path
         '--output', $ImagePath
         '--scale', '4'
-        '--svgId', 'diegl'
+        '--svgId', 'deer-isle-egl'
         '--configFile', $ConfigFile
         '--puppeteerConfigFile', $PuppeteerConfigFile
     )
@@ -174,11 +188,11 @@ function Optimize-PngImage {
 
     if (!($ImagePath = Convert-Path -LiteralPath $ImagePath)) { return }
 
+    # See https://github.com/oxipng/oxipng/blob/master/MANUAL.txt
     $oxipngCommand = $null
     $oxipngArgs = @(
-        '-o', '4'
-        '-i', '0'
-        '--strip', 'safe'
+        '--opt', '4' # optimization level
+        '--strip', 'safe' # remove all non-critical metadata chunks except those that affect the image appearance
         $ImagePath
     )
 
@@ -235,7 +249,7 @@ function Optimize-SvgImage {
         [Parameter(Mandatory, Position = 0)]
         [string]$ImagePath,
         # The path to the SVGO config file.
-        [string]$ConfigFile = (Join-Path $RepositoryRoot 'docs/generated/svgo.config.mjs'),
+        [string]$ConfigFile = (Join-Path $RepositoryRoot 'docs/generated/svgo-config.mjs'),
         # Force use of Node.js, even if a local installation is available.
         # If both -UseNode and -UseDocker are specified, Node.js will be used.
         [switch]$UseNode,

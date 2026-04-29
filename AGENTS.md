@@ -20,13 +20,13 @@ high-resolution images.
   triggered manually via `workflow_dispatch`.
 - **`build.ps1`**: A task automation script for building diagrams and other common repo tasks.
   - `scripts/*`: Helper scripts for task automation. Taken from
-    https://github.com/mrfootoyou/PSTaskFramework.
+    <https://github.com/mrfootoyou/PSTaskFramework>.
 - **`.prettierrc.yml`**: Prettier configuration ensuring consistent formatting across Markdown,
   YAML, and JSON files (`printWidth: 100`, `proseWrap: always`).
 
 ## Prerequisites
 
-- **PowerShell 7.4 or later** — required by `build.ps1`. See https://aka.ms/install-powershell.
+- **PowerShell 7.4 or later** — required by `build.ps1`. See <https://aka.ms/install-powershell>.
 - **Mermaid CLI ≥ 11.12.0** _or_ **Docker** — required to build diagrams locally. Run
   `./build.ps1 bootstrap` to install or verify these tools automatically.
 
