@@ -2,11 +2,14 @@
 
 ## Loot Flow
 
-This [flowchart](deer-isle-endgame-loot-flow.mmd) outlines the loot items required to complete the
-Endgame quest. It describes their dependencies and the overall progression leading up to the Endgame
-quest.
+This [flowchart](deer-isle-endgame-loot-flow.mmd) presents a tactical breakdown of the Deer Isle
+Endgame loot progression. It outlines the loot items required to complete the Endgame quest,
+describes their dependencies, and shows the overall progression leading up to the Endgame quest.
 
-Survivors can use this flowchart to plan and navigate through the quest efficiently.
+DayZ Survivors can use this flowchart to plan and navigate through the quest efficiently.
+
+> _WARNING_: The diagram contains spoilers. Do not view it if you want to experience the quest
+> without prior knowledge of the loot progression.
 
 _(Open image in a new tab to view full size.)_
 

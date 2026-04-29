@@ -14,19 +14,19 @@ high-resolution images.
   - `mermaid-config.json`: Configuration for Mermaid rendering, specifying the `Recursive` font.
   - `puppeteer-config.json`: Configuration for the Puppeteer instance used by Mermaid CLI.
   - `README.md`: Warning to not edit generated images directly.
-- **`.github/workflows/generate-diagrams.yml`**: An automated workflow that detects changes to
-  `.mmd` files on any pull-request change, generates updated PNG and SVG images, and commits them
-  back to the repository. It includes cleanup of orphaned images. It can also be triggered manually
-  via `workflow_dispatch` with a custom comma-separated list of diagram glob patterns.
+- **`.github/workflows/autofix.yml`**: An automated workflow that detects changes to `.mmd` files on
+  any pull-request change, generates updated PNG and SVG images, and commits them back to the
+  repository using the autofix-ci action. It includes cleanup of orphaned images. It can also be
+  triggered manually via `workflow_dispatch`.
 - **`build.ps1`**: A task automation script for building diagrams and other common repo tasks.
   - `scripts/*`: Helper scripts for task automation. Taken from
-    https://github.com/mrfootoyou/PSTaskFramework.
+    <https://github.com/mrfootoyou/PSTaskFramework>.
 - **`.prettierrc.yml`**: Prettier configuration ensuring consistent formatting across Markdown,
   YAML, and JSON files (`printWidth: 100`, `proseWrap: always`).
 
 ## Prerequisites
 
-- **PowerShell 7.4 or later** — required by `build.ps1`. See https://aka.ms/install-powershell.
+- **PowerShell 7.4 or later** — required by `build.ps1`. See <https://aka.ms/install-powershell>.
 - **Mermaid CLI ≥ 11.12.0** _or_ **Docker** — required to build diagrams locally. Run
   `./build.ps1 bootstrap` to install or verify these tools automatically.
 

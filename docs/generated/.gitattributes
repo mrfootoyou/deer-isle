@@ -1,0 +1,2 @@
+# treat svg as binary to prevent merge conflicts
+*.svg   binary

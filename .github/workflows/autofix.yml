@@ -1,5 +1,5 @@
-# spell:ignore quotepath mmdc stefanzweifel
-name: "Generate Diagrams"
+# This workflow automatically generates diagram images from Mermaid files.
+name: autofix.ci # must be named "autofix.ci" to work with the autofix-ci action
 
 on:
   pull_request:
@@ -18,11 +18,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  generate-diagrams:
-    name: Generate diagrams
+  autofix:
+    # job name must be "autofix" to work with the autofix-ci action
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     env:
       # Default values. Will be overridden below.
       ANY_CHANGED: false
@@ -32,9 +32,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          # needed to get the full git history for changed-files action
-          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && 1 || 0 }}
+
+      # Note: The Mermaid CLI image generator is not deterministic -- it produces slightly different
+      # PNG and SVG images even when the source diagram is unchanged. Therefore, we must check for
+      # source diagram changes in order to avoid unnecessary commits.
 
       - name: Get changed files (manual trigger)
         if: github.event_name == 'workflow_dispatch'
@@ -78,12 +79,19 @@ jobs:
           echo "ANY_DELETED=$ANY_DELETED" >> $GITHUB_ENV
           echo "DELETED_FILES_JSON=$DELETED_FILES_JSON" >> $GITHUB_ENV
 
+      # Setup Node for SVGO (used in the build script)
+      - name: Setup Node.js
+        if: env.ANY_CHANGED == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
       - name: Generate diagram images
         if: env.ANY_CHANGED == 'true'
         shell: pwsh
         run: |
           $diagrams = "$env:CHANGED_FILES_JSON" | ConvertFrom-Json
-          ./build.ps1 build -- -UseDocker -Diagrams $diagrams
+          ./build.ps1 build -- -Diagrams $diagrams
 
       - name: Delete orphaned diagram images
         if: env.ANY_DELETED == 'true'
@@ -100,16 +108,9 @@ jobs:
               }
           }
 
-      - name: Atomic commit
-        id: auto_commit_action
+      - name: Commit changes using autofix.ci
         if: env.ANY_CHANGED == 'true' || env.ANY_DELETED == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v7
+        uses: autofix-ci/action@v1
         with:
-          file_pattern: ./docs/generated/*
-          commit_message: "docs(diagrams): automatically generated diagram images"
-
-      - name: "${{ steps.auto_commit_action.outputs.changes_detected == 'true' &&
-          'Changes pushed ⚡' || 'No changes ✅' }}"
-        if: steps.auto_commit_action.outputs.changes_detected == 'true'
-        run: |
-          echo "Commit ID: ${{ steps.auto_commit_action.outputs.commit_hash }}"
+          commit-message: "docs(diagram): automatically generated diagram images"
+          comment: Automated update of diagram images based on changes to .mmd files.
